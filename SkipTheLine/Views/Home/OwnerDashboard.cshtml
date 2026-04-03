@@ -1,0 +1,267 @@
+﻿@{
+    ViewData["Title"] = "Owner Dashboard - SkipTheLine";
+}
+
+<div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px;">
+    <h1 style="margin-bottom: 30px;">Restaurant Owner Dashboard</h1>
+
+    <!-- Add Restaurant Button -->
+    <div style="margin-bottom: 30px;">
+        <button id="showAddRestaurantBtn" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer;">
+            <i class="fas fa-plus"></i> Add New Restaurant
+        </button>
+    </div>
+
+    <!-- Add Restaurant Form -->
+    <div id="addRestaurantForm" style="display: none; background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
+        <h2 style="margin-bottom: 20px; color: #ff6b35;">Add New Restaurant</h2>
+        <form id="restaurantForm">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div>
+                    <label>Restaurant Name *</label>
+                    <input type="text" id="restaurantName" class="form-control" required>
+                </div>
+                <div>
+                    <label>Cuisine Type *</label>
+                    <input type="text" id="cuisine" class="form-control" required>
+                </div>
+                <div>
+                    <label>Address *</label>
+                    <input type="text" id="address" class="form-control" required>
+                </div>
+                <div>
+                    <label>City *</label>
+                    <input type="text" id="city" class="form-control" required>
+                </div>
+                <div>
+                    <label>Phone Number *</label>
+                    <input type="tel" id="phoneNumber" class="form-control" required>
+                </div>
+                <div>
+                    <label>Email *</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                <div>
+                    <label>Opening Time *</label>
+                    <input type="time" id="openingTime" class="form-control" required value="09:00">
+                </div>
+                <div>
+                    <label>Closing Time *</label>
+                    <input type="time" id="closingTime" class="form-control" required value="21:00">
+                </div>
+                <div>
+                    <label>Max Party Size *</label>
+                    <input type="number" id="maxPartySize" class="form-control" required value="8" min="1" max="20">
+                </div>
+                <div style="grid-column: span 2;">
+                    <label>Description</label>
+                    <textarea id="description" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div style="margin-top: 25px; display: flex; gap: 15px;">
+                <button type="submit" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Save Restaurant</button>
+                <button type="button" id="cancelAddBtn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div id="dashboardContent">
+        <div style="text-align: center; padding: 40px;">
+            <p>Loading dashboard...</p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            window.location.href = '/Home/Login';
+        }
+
+        // Show/Hide Add Restaurant Form
+        const showBtn = document.getElementById('showAddRestaurantBtn');
+        const addForm = document.getElementById('addRestaurantForm');
+        const cancelBtn = document.getElementById('cancelAddBtn');
+
+        if (showBtn) {
+            showBtn.onclick = () => {
+                addForm.style.display = addForm.style.display === 'none' ? 'block' : 'none';
+            };
+        }
+
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                addForm.style.display = 'none';
+                document.getElementById('restaurantForm').reset();
+            };
+        }
+
+        // Submit new restaurant
+        const restaurantForm = document.getElementById('restaurantForm');
+        if (restaurantForm) {
+            restaurantForm.onsubmit = async (e) => {
+                e.preventDefault();
+
+                const restaurantData = {
+                    name: document.getElementById('restaurantName').value,
+                    cuisine: document.getElementById('cuisine').value,
+                    address: document.getElementById('address').value,
+                    city: document.getElementById('city').value,
+                    province: null,
+                    postalCode: null,
+                    country: 'Canada',
+                    phoneNumber: document.getElementById('phoneNumber').value,
+                    email: document.getElementById('email').value,
+                    website: null,
+                    description: document.getElementById('description').value || null,
+                    openingTime: document.getElementById('openingTime').value + ':00',
+                    closingTime: document.getElementById('closingTime').value + ':00',
+                    maxPartySize: parseInt(document.getElementById('maxPartySize').value)
+                };
+
+                try {
+                    const response = await fetch('/api/restaurants', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify(restaurantData)
+                    });
+
+                    if (response.ok) {
+                        alert('Restaurant added successfully!');
+                        addForm.style.display = 'none';
+                        restaurantForm.reset();
+                        loadDashboard();
+                    } else {
+                        const error = await response.json();
+                        alert(error.message || 'Failed to add restaurant');
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                }
+            };
+        }
+
+        // Load dashboard
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/users/restaurant/dashboard', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/Home/Login';
+                    }
+                    document.getElementById('dashboardContent').innerHTML = '<p style="color:red;">Error loading dashboard</p>';
+                    return;
+                }
+
+                const data = await response.json();
+                displayDashboard(data);
+            } catch (error) {
+                document.getElementById('dashboardContent').innerHTML = '<p style="color:red;">Error loading dashboard</p>';
+            }
+        }
+
+        function displayDashboard(data) {
+            const container = document.getElementById('dashboardContent');
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div style="background: white; border-radius: 12px; padding: 60px; text-align: center;">
+                        <i class="fas fa-store" style="font-size: 64px; color: #ff6b35; margin-bottom: 20px;"></i>
+                        <h2>No Restaurants Yet</h2>
+                        <p>Click the "Add New Restaurant" button above to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            for (let i = 0; i < data.length; i++) {
+                const item = data[i];
+                html += `
+                    <div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
+                        <h2 style="color: #ff6b35; margin: 0 0 10px 0;">${item.restaurant.name}</h2>
+                        <p>${item.restaurant.address}, ${item.restaurant.city}</p>
+                        <p>Hours: ${item.restaurant.openingTime.substring(0,5)} - ${item.restaurant.closingTime.substring(0,5)}</p>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0;">
+                            <div style="background: #f8f9fa; padding: 15px; text-align: center; border-radius: 8px;">
+                                <div style="font-size: 28px; font-weight: bold; color: #ff6b35;">${item.stats.totalReservations}</div>
+                                <div>Total Upcoming</div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; text-align: center; border-radius: 8px;">
+                                <div style="font-size: 28px; font-weight: bold; color: #ff6b35;">${item.stats.todayReservations}</div>
+                                <div>Today</div>
+                            </div>
+                        </div>
+
+                        <h3>Upcoming Reservations (${item.upcomingReservations.length})</h3>
+                        ${item.upcomingReservations.length === 0 ? '<p>No upcoming reservations</p>' : `
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f5f5f5;">
+                                        <th style="padding: 10px;">Customer</th>
+                                        <th style="padding: 10px;">Date</th>
+                                        <th style="padding: 10px;">Time</th>
+                                        <th style="padding: 10px;">Party</th>
+                                        <th style="padding: 10px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${item.upcomingReservations.map(r => `
+                                        <tr style="border-bottom: 1px solid #ddd;">
+                                            <td style="padding: 10px;">${r.userFirstName || 'Guest'} ${r.userLastName || ''}</td>
+                                            <td style="padding: 10px;">${new Date(r.reservationDate).toLocaleDateString()}</td>
+                                            <td style="padding: 10px;">${r.reservationTime.substring(0,5)}</td>
+                                            <td style="padding: 10px;">${r.partySize}</td>
+                                            <td style="padding: 10px;">
+                                                <button class="checkin-btn" data-id="${r.id}" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Check In</button>
+                                                <button class="cancel-btn" data-id="${r.id}" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;">Cancel</button>
+                                            </td>
+                                         </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+
+            document.querySelectorAll('.checkin-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const id = btn.getAttribute('data-id');
+                    const response = await fetch(`/api/users/reservation/${id}/checkin`, {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    alert(response.ok ? 'Customer checked in!' : 'Failed to check in');
+                    if (response.ok) loadDashboard();
+                };
+            });
+
+            document.querySelectorAll('.cancel-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    if (!confirm('Cancel this reservation?')) return;
+                    const id = btn.getAttribute('data-id');
+                    const response = await fetch(`/api/reservations/${id}/cancel`, {
+                        method: 'PUT',
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    alert(response.ok ? 'Reservation cancelled!' : 'Failed to cancel');
+                    if (response.ok) loadDashboard();
+                };
+            });
+        }
+
+        loadDashboard();
+    </script>
+}

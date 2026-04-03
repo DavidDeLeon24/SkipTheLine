@@ -4,47 +4,206 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - SkipTheLine</title>
-    <script type="importmap"></script>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/SkipTheLine.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-brand a {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ff6b35;
+            text-decoration: none;
+        }
+
+        .nav-brand i {
+            margin-right: 8px;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+            .nav-menu a {
+                text-decoration: none;
+                color: #666;
+                font-weight: 500;
+                transition: color 0.3s;
+            }
+
+                .nav-menu a:hover {
+                    color: #ff6b35;
+                }
+
+        .main-content {
+            margin-top: 80px;
+            min-height: calc(100vh - 80px - 200px);
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #ff6b35;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">SkipTheLine</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="/"><i class="fas fa-utensils"></i><span>SkipTheLine</span></a>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+            <div class="nav-menu" id="navMenu">
+                <a href="/">Home</a>
+                <a href="/Home/Restaurants">Restaurants</a>
+                <!-- Dynamic links will be inserted here by JavaScript -->
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        @RenderBody()
     </div>
 
-    <footer class="border-top footer text-muted">
+    <footer class="footer">
         <div class="container">
-            &copy; 2026 - SkipTheLine - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            <p>&copy; 2026 SkipTheLine - Smart Restaurant Reservation System</p>
         </div>
     </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Function to build navigation based on login status
+        function buildNavigation() {
+            const token = localStorage.getItem('token');
+            const userRole = localStorage.getItem('userRole');
+            const navMenu = document.getElementById('navMenu');
+
+            // Clear existing dynamic links (keep Home and Restaurants)
+            const existingLinks = navMenu.querySelectorAll('.dynamic-link');
+            existingLinks.forEach(link => link.remove());
+
+            if (token) {
+                // User is logged in
+                if (userRole === 'RestaurantOwner' || userRole === 'Admin' || userRole === '2' || userRole === '3') {
+                    // Owner or Admin - show Dashboard
+                    const dashboardLink = document.createElement('a');
+                    dashboardLink.href = '/Home/OwnerDashboard';
+                    dashboardLink.textContent = 'Dashboard';
+                    dashboardLink.className = 'dynamic-link';
+                    navMenu.appendChild(dashboardLink);
+                }
+
+                // Common links for all logged in users
+                const reservationsLink = document.createElement('a');
+                reservationsLink.href = '/Home/MyReservations';
+                reservationsLink.textContent = 'My Reservations';
+                reservationsLink.className = 'dynamic-link';
+                navMenu.appendChild(reservationsLink);
+
+                const profileLink = document.createElement('a');
+                profileLink.href = '/Home/Profile';
+                profileLink.textContent = 'Profile';
+                profileLink.className = 'dynamic-link';
+                navMenu.appendChild(profileLink);
+
+                const logoutLink = document.createElement('a');
+                logoutLink.href = '#';
+                logoutLink.textContent = 'Logout';
+                logoutLink.className = 'dynamic-link';
+                logoutLink.onclick = function(e) {
+                    e.preventDefault();
+                    localStorage.clear();
+                    window.location.href = '/';
+                };
+                navMenu.appendChild(logoutLink);
+            } else {
+                // Not logged in
+                const loginLink = document.createElement('a');
+                loginLink.href = '/Home/Login';
+                loginLink.textContent = 'Login';
+                loginLink.className = 'dynamic-link';
+                navMenu.appendChild(loginLink);
+
+                const registerLink = document.createElement('a');
+                registerLink.href = '/Home/Register';
+                registerLink.textContent = 'Register';
+                registerLink.className = 'dynamic-link';
+                navMenu.appendChild(registerLink);
+            }
+        }
+
+        // Run when page loads
+        buildNavigation();
+
+        // Also run when localStorage changes (in case of login/logout in another tab)
+        window.addEventListener('storage', function() {
+            buildNavigation();
+        });
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

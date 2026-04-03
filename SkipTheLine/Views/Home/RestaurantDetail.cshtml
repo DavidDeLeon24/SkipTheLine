@@ -1,0 +1,182 @@
+﻿@{
+    ViewData["Title"] = "Restaurant Details - SkipTheLine";
+    var restaurantId = Context.Request.Query["id"];
+}
+
+<div class="container" style="padding: 40px 20px;">
+    <div id="restaurantInfo"></div>
+
+    <div style="margin-top: 40px;">
+        <h2>Book a Table</h2>
+
+        <div class="card" style="padding: 20px; margin-top: 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <input type="date" id="date" class="form-control">
+                <select id="partySize" class="form-control">
+                    <option value="1">1 person</option>
+                    <option value="2">2 people</option>
+                    <option value="3">3 people</option>
+                    <option value="4">4 people</option>
+                    <option value="5">5 people</option>
+                    <option value="6">6 people</option>
+                    <option value="7">7 people</option>
+                    <option value="8">8 people</option>
+                </select>
+                <button id="checkAvailabilityBtn" class="btn btn-primary">Check Availability</button>
+            </div>
+        </div>
+
+        <div id="availabilitySlots" style="margin-top: 30px;"></div>
+
+        <div id="bookingForm" style="display: none; margin-top: 30px;">
+            <div class="card" style="padding: 20px;">
+                <h3>Confirm Your Reservation</h3>
+                <form id="reservationForm">
+                    <input type="hidden" id="selectedTime">
+                    <div class="form-group">
+                        <label>Special Requests (Optional)</label>
+                        <textarea id="specialRequests" class="form-control" rows="3" placeholder="Any special requests?"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Confirm Booking</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="text/javascript">
+        // Get restaurantId from the URL parameter
+        var urlParams = new URLSearchParams(window.location.search);
+        var restaurantId = parseInt(urlParams.get('id'));
+        var currentToken = localStorage.getItem('token');
+        var selectedRestaurant = null;
+
+        async function loadRestaurant() {
+            try {
+                var response = await fetch('/api/restaurants/' + restaurantId);
+                selectedRestaurant = await response.json();
+                displayRestaurantInfo(selectedRestaurant);
+            } catch (error) {
+                console.error('Error loading restaurant:', error);
+                document.getElementById('restaurantInfo').innerHTML = '<p class="alert alert-error">Error loading restaurant</p>';
+            }
+        }
+
+        function displayRestaurantInfo(restaurant) {
+            var html = '<div class="card" style="padding: 30px;">' +
+                '<h1 style="color: #ff6b35; margin-bottom: 10px;">' + restaurant.name + '</h1>' +
+                '<p><i class="fas fa-utensils"></i> ' + restaurant.cuisine + '</p>' +
+                '<p><i class="fas fa-map-marker-alt"></i> ' + restaurant.address + ', ' + restaurant.city + '</p>' +
+                '<p><i class="fas fa-phone"></i> ' + restaurant.phoneNumber + '</p>' +
+                '<p><i class="fas fa-clock"></i> Hours: ' + restaurant.openingTime.substring(0,5) + ' - ' + restaurant.closingTime.substring(0,5) + '</p>' +
+                '<p><i class="fas fa-users"></i> Max Party Size: ' + restaurant.maxPartySize + ' people</p>';
+            if (restaurant.description) {
+                html += '<p><i class="fas fa-info-circle"></i> ' + restaurant.description + '</p>';
+            }
+            html += '</div>';
+            document.getElementById('restaurantInfo').innerHTML = html;
+
+            // Set default date to tomorrow
+            var tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
+        }
+
+        async function checkAvailability() {
+            var date = document.getElementById('date').value;
+            var partySize = document.getElementById('partySize').value;
+
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+
+            try {
+                var url = '/api/restaurants/' + restaurantId + '/availability?date=' + date + '&partySize=' + partySize;
+                var response = await fetch(url);
+                var slots = await response.json();
+                displayAvailability(slots);
+            } catch (error) {
+                console.error('Error checking availability:', error);
+                document.getElementById('availabilitySlots').innerHTML = '<p class="alert alert-error">Error checking availability</p>';
+            }
+        }
+
+        function displayAvailability(slots) {
+            if (!slots || slots.length === 0) {
+                document.getElementById('availabilitySlots').innerHTML = '<p class="alert alert-warning">No available time slots for the selected date and party size</p>';
+                return;
+            }
+
+            var html = '<h3>Available Time Slots</h3><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;">';
+            for (var i = 0; i < slots.length; i++) {
+                html += '<button class="btn btn-outline time-slot" data-time="' + slots[i].time + '">' + slots[i].time + '</button>';
+            }
+            html += '</div>';
+            document.getElementById('availabilitySlots').innerHTML = html;
+
+            var timeSlots = document.querySelectorAll('.time-slot');
+            for (var i = 0; i < timeSlots.length; i++) {
+                timeSlots[i].addEventListener('click', function() {
+                    var allSlots = document.querySelectorAll('.time-slot');
+                    for (var j = 0; j < allSlots.length; j++) {
+                        allSlots[j].classList.remove('btn-primary');
+                        allSlots[j].classList.add('btn-outline');
+                    }
+                    this.classList.remove('btn-outline');
+                    this.classList.add('btn-primary');
+                    document.getElementById('selectedTime').value = this.getAttribute('data-time');
+                    document.getElementById('bookingForm').style.display = 'block';
+                });
+            }
+        }
+
+        async function createReservation(event) {
+            event.preventDefault();
+
+            if (!currentToken) {
+                alert('Please login to make a reservation');
+                window.location.href = '/Home/Login';
+                return;
+            }
+
+            var reservationData = {
+                restaurantId: restaurantId,
+                reservationDate: document.getElementById('date').value,
+                reservationTime: document.getElementById('selectedTime').value,
+                partySize: parseInt(document.getElementById('partySize').value),
+                specialRequests: document.getElementById('specialRequests').value
+            };
+
+            try {
+                var response = await fetch('/api/reservations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + currentToken
+                    },
+                    body: JSON.stringify(reservationData)
+                });
+
+                if (response.ok) {
+                    alert('Reservation confirmed! Check your email for details.');
+                    window.location.href = '/Home/MyReservations';
+                } else {
+                    var error = await response.json();
+                    alert(error.message || 'Failed to create reservation');
+                }
+            } catch (error) {
+                console.error('Error creating reservation:', error);
+                alert('Network error. Please try again.');
+            }
+        }
+
+        // Initialize event listeners after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('checkAvailabilityBtn').addEventListener('click', checkAvailability);
+            document.getElementById('reservationForm').addEventListener('submit', createReservation);
+            loadRestaurant();
+        });
+    </script>
+}

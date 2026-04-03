@@ -12,8 +12,8 @@ using SkipTheLine.Data;
 namespace SkipTheLine.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260401000353_initial")]
-    partial class initial
+    [Migration("20260403061505_InitialCreateSchema")]
+    partial class InitialCreateSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

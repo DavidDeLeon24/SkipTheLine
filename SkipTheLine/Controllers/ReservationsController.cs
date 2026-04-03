@@ -131,26 +131,22 @@ namespace SkipTheLine.Controllers
             if (restaurant == null)
                 return NotFound(new { message = "Restaurant not found" });
 
-            // Validate reservation time
             if (createDto.ReservationTime < restaurant.OpeningTime ||
                 createDto.ReservationTime > restaurant.ClosingTime)
             {
                 return BadRequest(new { message = $"Reservation time must be between {restaurant.OpeningTime:hh\\:mm} and {restaurant.ClosingTime:hh\\:mm}" });
             }
 
-            // Validate date
             if (createDto.ReservationDate.Date < DateTime.Today)
             {
                 return BadRequest(new { message = "Cannot make reservations for past dates" });
             }
 
-            // Validate party size
             if (createDto.PartySize > restaurant.MaxPartySize)
             {
                 return BadRequest(new { message = $"Party size cannot exceed {restaurant.MaxPartySize}" });
             }
 
-            // Check for existing reservations
             var existingReservations = await _context.Reservations
                 .Where(r => r.RestaurantId == createDto.RestaurantId &&
                            r.ReservationDate.Date == createDto.ReservationDate.Date &&
@@ -160,7 +156,6 @@ namespace SkipTheLine.Controllers
                 .Select(r => r.TableId)
                 .ToListAsync();
 
-            // Find available table
             var availableTable = restaurant.Tables
                 .Where(t => t.Seats >= createDto.PartySize &&
                            t.IsActive &&
@@ -173,7 +168,6 @@ namespace SkipTheLine.Controllers
                 return BadRequest(new { message = "No tables available for the selected time and party size" });
             }
 
-            // Create reservation
             var reservation = new Reservation
             {
                 UserId = userId,
@@ -190,7 +184,6 @@ namespace SkipTheLine.Controllers
             _context.Reservations.Add(reservation);
             await _context.SaveChangesAsync();
 
-            // Get complete reservation with navigation properties
             var createdReservation = await _context.Reservations
                 .Include(r => r.User)
                 .Include(r => r.Restaurant)
@@ -200,31 +193,11 @@ namespace SkipTheLine.Controllers
             // Send notifications
             try
             {
-                // Get the user
                 var user = await _userManager.FindByIdAsync(userId);
-
-                // Send confirmation email (check for null)
                 if (user != null && createdReservation != null && createdReservation.Restaurant != null)
                 {
-                    await _notificationService.SendConfirmationEmailAsync(
-                        createdReservation,
-                        user,
-                        createdReservation.Restaurant);
-
-                    // Send confirmation SMS if phone number exists
-                    if (!string.IsNullOrEmpty(user.PhoneNumber))
-                    {
-                        await _notificationService.SendConfirmationSmsAsync(
-                            createdReservation,
-                            user,
-                            createdReservation.Restaurant);
-                    }
-
-                    // Notify restaurant owner
-                    await _notificationService.SendOwnerNotificationAsync(
-                        createdReservation,
-                        createdReservation.Restaurant);
-
+                    await _notificationService.SendConfirmationEmailAsync(createdReservation, user, createdReservation.Restaurant);
+                    await _notificationService.SendOwnerNotificationAsync(createdReservation, createdReservation.Restaurant);
                     _logger.LogInformation($"Reservation {reservation.Id} created and notifications sent");
                 }
             }
@@ -242,6 +215,9 @@ namespace SkipTheLine.Controllers
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { message = "User not authenticated" });
+
             var reservation = await _context.Reservations
                 .Include(r => r.User)
                 .Include(r => r.Restaurant)
@@ -250,8 +226,23 @@ namespace SkipTheLine.Controllers
             if (reservation == null)
                 return NotFound(new { message = "Reservation not found" });
 
-            if (reservation.UserId != userId && !User.IsInRole("Admin"))
-                return Forbid();
+            // Check if user owns this reservation
+            var isOwner = reservation.UserId == userId;
+            var isAdmin = User.IsInRole("Admin");
+
+            // Check if user is the restaurant owner
+            bool isRestaurantOwner = false;
+            if (!isOwner && !isAdmin)
+            {
+                var restaurant = await _context.Restaurants
+                    .FirstOrDefaultAsync(r => r.Id == reservation.RestaurantId);
+                isRestaurantOwner = restaurant != null && restaurant.OwnerId == userId;
+            }
+
+            if (!isOwner && !isAdmin && !isRestaurantOwner)
+            {
+                return Forbid(); // User cannot cancel this reservation
+            }
 
             if (reservation.ReservationDate.Date < DateTime.Today)
                 return BadRequest(new { message = "Cannot cancel past reservations" });
@@ -271,22 +262,19 @@ namespace SkipTheLine.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Send cancellation notification
-            try
-            {
-                if (reservation.User != null && reservation.Restaurant != null)
-                {
-                    await _notificationService.SendCancellationEmailAsync(
-                        reservation,
-                        reservation.User,
-                        reservation.Restaurant);
+            _logger.LogInformation($"Reservation {id} cancelled by user {userId}");
 
-                    _logger.LogInformation($"Reservation {id} cancelled and notification sent");
-                }
-            }
-            catch (Exception ex)
+            // Send cancellation notification only to the reservation owner
+            if (isOwner)
             {
-                _logger.LogError(ex, $"Failed to send cancellation notification for reservation {id}");
+                try
+                {
+                    await _notificationService.SendCancellationEmailAsync(reservation, reservation.User, reservation.Restaurant);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Failed to send cancellation email for reservation {id}");
+                }
             }
 
             return Ok(new { message = "Reservation cancelled successfully" });
@@ -314,14 +302,12 @@ namespace SkipTheLine.Controllers
 
             var restaurant = reservation.Restaurant;
 
-            // Validate new time
             if (rescheduleDto.ReservationTime < restaurant.OpeningTime ||
                 rescheduleDto.ReservationTime > restaurant.ClosingTime)
             {
                 return BadRequest(new { message = $"Reservation time must be between {restaurant.OpeningTime:hh\\:mm} and {restaurant.ClosingTime:hh\\:mm}" });
             }
 
-            // Check availability for new time
             var existingReservations = await _context.Reservations
                 .Where(r => r.RestaurantId == restaurant.Id &&
                            r.Id != id &&
@@ -344,7 +330,6 @@ namespace SkipTheLine.Controllers
                 return BadRequest(new { message = "No tables available for the selected time" });
             }
 
-            // Update reservation
             reservation.ReservationDate = rescheduleDto.ReservationDate;
             reservation.ReservationTime = rescheduleDto.ReservationTime;
             reservation.TableId = availableTable.Id;
@@ -352,16 +337,11 @@ namespace SkipTheLine.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Send reschedule confirmation
             try
             {
                 if (reservation.User != null && reservation.Restaurant != null)
                 {
-                    await _notificationService.SendConfirmationEmailAsync(
-                        reservation,
-                        reservation.User,
-                        reservation.Restaurant);
-
+                    await _notificationService.SendConfirmationEmailAsync(reservation, reservation.User, reservation.Restaurant);
                     _logger.LogInformation($"Reservation {id} rescheduled");
                 }
             }

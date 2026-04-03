@@ -141,9 +141,16 @@ builder.Services.AddCors(options =>
 // Response caching
 builder.Services.AddResponseCaching();
 
-// Health checks - FIXED
-builder.Services.AddHealthChecks()
-    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddHealthChecks()
+        .AddSqlServer(connectionString);
+}
+else
+{
+    builder.Services.AddHealthChecks();
+}
 
 var app = builder.Build();
 

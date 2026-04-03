@@ -236,4 +236,4 @@ namespace SkipTheLine.Controllers
             return Ok(new { message = "Customer checked in successfully" });
         }
     }
-}
+}   

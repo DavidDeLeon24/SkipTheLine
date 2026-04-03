@@ -1,0 +1,176 @@
+﻿@{
+    ViewData["Title"] = "My Reservations - SkipTheLine";
+}
+
+<div class="container" style="padding: 40px 20px;">
+    <h1 style="margin-bottom: 30px;">My Reservations</h1>
+
+    <div style="margin-bottom: 20px;">
+        <button id="upcomingBtn" class="btn btn-primary">Upcoming</button>
+        <button id="historyBtn" class="btn btn-secondary">History</button>
+    </div>
+
+    <div id="reservationsList"></div>
+</div>
+
+<style>
+    .reservation-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 4px solid #ff6b35;
+    }
+
+    .reservation-info p {
+        margin: 8px 0;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-confirmed {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .cancel-button {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 10px;
+    }
+
+        .cancel-button:hover {
+            background: #c82333;
+        }
+</style>
+
+@section Scripts {
+    <script>
+        const token = localStorage.getItem('token');
+        let currentView = 'upcoming';
+
+        if (!token) {
+            window.location.href = '/Home/Login';
+        }
+
+        async function loadReservations() {
+            const url = currentView === 'upcoming'
+                ? '/api/reservations/upcoming'
+                : '/api/reservations/history';
+
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/Home/Login';
+                    return;
+                }
+
+                const reservations = await response.json();
+                displayReservations(reservations);
+            } catch (error) {
+                document.getElementById('reservationsList').innerHTML = '<p style="color:red;">Error loading reservations</p>';
+            }
+        }
+
+        function displayReservations(reservations) {
+            const container = document.getElementById('reservationsList');
+
+            if (!reservations || reservations.length === 0) {
+                container.innerHTML = '<p>No reservations found. <a href="/Home/Restaurants">Book a table</a></p>';
+                return;
+            }
+
+            let html = '';
+
+            for (let i = 0; i < reservations.length; i++) {
+                const r = reservations[i];
+
+                const date = new Date(r.reservationDate);
+                const formattedDate = date.toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                });
+
+                let formattedTime = r.reservationTime;
+                if (formattedTime && formattedTime.length > 5) {
+                    formattedTime = formattedTime.substring(0, 5);
+                }
+
+                // Status is 2 = Confirmed
+                const isConfirmed = (r.status === 2 || r.status === 'Confirmed');
+                const statusText = isConfirmed ? 'Confirmed' : (r.status === 5 ? 'Cancelled' : 'Unknown');
+
+                html += `
+                    <div class="reservation-card">
+                        <div class="reservation-info">
+                            <h3 style="color: #ff6b35; margin: 0 0 10px 0;">${r.restaurantName}</h3>
+                            <p><strong>📅 Date:</strong> ${formattedDate}</p>
+                            <p><strong>⏰ Time:</strong> ${formattedTime}</p>
+                            <p><strong>👥 Party:</strong> ${r.partySize} ${r.partySize === 1 ? 'person' : 'people'}</p>
+                            <p><strong>🪑 Table:</strong> #${r.tableNumber}</p>
+                            ${r.specialRequests ? `<p><strong>📝 Notes:</strong> ${r.specialRequests}</p>` : ''}
+                        </div>
+                        <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <span class="status-badge status-confirmed">${statusText}</span>
+                            ${isConfirmed ? `<button class="cancel-button" data-id="${r.id}">Cancel Reservation</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+
+            // Add cancel button handlers
+            const buttons = document.querySelectorAll('.cancel-button');
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].onclick = async function() {
+                    const id = this.getAttribute('data-id');
+                    if (confirm('Cancel this reservation?')) {
+                        const response = await fetch('/api/reservations/' + id + '/cancel', {
+                            method: 'PUT',
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+                        if (response.ok) {
+                            alert('Cancelled!');
+                            loadReservations();
+                        } else {
+                            const error = await response.json();
+                            alert(error.message || 'Failed to cancel');
+                        }
+                    }
+                };
+            }
+        }
+
+        document.getElementById('upcomingBtn').onclick = function() {
+            currentView = 'upcoming';
+            this.className = 'btn btn-primary';
+            document.getElementById('historyBtn').className = 'btn btn-secondary';
+            loadReservations();
+        };
+
+        document.getElementById('historyBtn').onclick = function() {
+            currentView = 'history';
+            this.className = 'btn btn-primary';
+            document.getElementById('upcomingBtn').className = 'btn btn-secondary';
+            loadReservations();
+        };
+
+        loadReservations();
+    </script>
+}

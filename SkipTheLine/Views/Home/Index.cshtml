@@ -1,8 +1,34 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Home - SkipTheLine";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div style="background: linear-gradient(135deg, #ff6b35 0%, #ff8c5a 100%); color: white; padding: 80px 0;">
+    <div class="container" style="text-align: center;">
+        <h1 style="font-size: 3rem; margin-bottom: 20px;">Skip the Line,<br>Book Your Table Instantly</h1>
+        <p style="font-size: 1.2rem; margin-bottom: 30px;">Discover the best restaurants in your city and reserve a table in seconds.</p>
+        <a href="/Home/Restaurants" class="btn" style="background: white; color: #ff6b35; font-size: 1.1rem; padding: 12px 30px;">Find a Table →</a>
+    </div>
+</div>
+
+<div style="padding: 80px 0;">
+    <div class="container">
+        <h2 style="text-align: center; margin-bottom: 50px;">Why Choose SkipTheLine?</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+            <div class="card" style="padding: 30px; text-align: center;">
+                <i class="fas fa-search" style="font-size: 3rem; color: #ff6b35; margin-bottom: 20px;"></i>
+                <h3>Easy Discovery</h3>
+                <p>Search restaurants by cuisine, location, or name.</p>
+            </div>
+            <div class="card" style="padding: 30px; text-align: center;">
+                <i class="fas fa-calendar-check" style="font-size: 3rem; color: #ff6b35; margin-bottom: 20px;"></i>
+                <h3>Instant Booking</h3>
+                <p>Book your table in seconds with real-time availability.</p>
+            </div>
+            <div class="card" style="padding: 30px; text-align: center;">
+                <i class="fas fa-bell" style="font-size: 3rem; color: #ff6b35; margin-bottom: 20px;"></i>
+                <h3>Smart Reminders</h3>
+                <p>Get email and SMS reminders for your reservations.</p>
+            </div>
+        </div>
+    </div>
 </div>

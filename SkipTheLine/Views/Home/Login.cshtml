@@ -1,0 +1,78 @@
+﻿@{
+    ViewData["Title"] = "Login - SkipTheLine";
+}
+
+<div style="max-width: 400px; margin: 0 auto; padding: 40px;">
+    <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <h2 style="text-align: center; margin-bottom: 30px;">Welcome Back</h2>
+
+        <div id="errorMessage" style="display: none; background: #f8d7da; color: #721c24; padding: 10px; border-radius: 6px; margin-bottom: 20px;"></div>
+
+        <form id="loginForm">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Email Address</label>
+                <input type="email" id="email" class="form-control" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Password</label>
+                <input type="password" id="password" class="form-control" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px;">
+            </div>
+            <button type="submit" style="width: 100%; padding: 12px; background: #ff6b35; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">Login</button>
+        </form>
+
+        <p style="text-align: center; margin-top: 20px;">
+            Don't have an account? <a href="/Home/Register">Register here</a>
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+
+            errorDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.clear();
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    const role = data.user.role;
+                    if (typeof role === 'number') {
+                        localStorage.setItem('userRole', role === 2 ? 'RestaurantOwner' : (role === 3 ? 'Admin' : 'Customer'));
+                    } else {
+                        localStorage.setItem('userRole', role);
+                    }
+                    localStorage.setItem('userEmail', data.user.email);
+
+                    const roleValue = data.user.role;
+                    if (roleValue === 2 || roleValue === 3 || roleValue === 'RestaurantOwner' || roleValue === 'Admin') {
+                        window.location.href = '/Home/OwnerDashboard';
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    errorDiv.textContent = data.message || 'Login failed';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Network error. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+}

@@ -1,0 +1,75 @@
+﻿@{
+    ViewData["Title"] = "Restaurants - SkipTheLine";
+}
+
+<div class="container" style="padding: 40px 20px;">
+    <h1 style="margin-bottom: 30px;">Find a Restaurant</h1>
+
+    <div class="card" style="padding: 20px; margin-bottom: 30px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <input type="text" id="searchTerm" class="form-control" placeholder="Search by name or cuisine">
+            <input type="text" id="city" class="form-control" placeholder="City">
+            <button id="searchBtn" class="btn btn-primary">Search</button>
+        </div>
+    </div>
+
+    <div id="restaurantsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px;">
+        <div style="text-align: center; padding: 40px;">Loading...</div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentToken = localStorage.getItem('token');
+
+        async function loadRestaurants(searchTerm = '', city = '') {
+            let url = '/api/restaurants';
+            const params = new URLSearchParams();
+            if (searchTerm) params.append('searchTerm', searchTerm);
+            if (city) params.append('city', city);
+            if (params.toString()) url += '?' + params.toString();
+
+            try {
+                const response = await fetch(url);
+                const restaurants = await response.json();
+                displayRestaurants(restaurants);
+            } catch (error) {
+                document.getElementById('restaurantsGrid').innerHTML = '<p class="alert alert-error">Error loading restaurants</p>';
+            }
+        }
+
+        function displayRestaurants(restaurants) {
+            if (!restaurants || restaurants.length === 0) {
+                document.getElementById('restaurantsGrid').innerHTML = '<p>No restaurants found</p>';
+                return;
+            }
+
+            let html = '';
+            restaurants.forEach(restaurant => {
+                html += `
+                    <div class="card">
+                        <div style="padding: 20px;">
+                            <h3 style="color: #ff6b35; margin-bottom: 10px;">${restaurant.name}</h3>
+                            <p style="margin-bottom: 8px;"><i class="fas fa-utensils"></i> ${restaurant.cuisine}</p>
+                            <p style="margin-bottom: 8px;"><i class="fas fa-map-marker-alt"></i> ${restaurant.address}, ${restaurant.city}</p>
+                            <p style="margin-bottom: 8px;"><i class="fas fa-clock"></i> ${restaurant.openingTime.substring(0,5)} - ${restaurant.closingTime.substring(0,5)}</p>
+                            <div style="margin-top: 20px;">
+                                <a href="/Home/RestaurantDetail?id=${restaurant.id}" class="btn btn-primary" style="width: 100%; text-align: center; display: block;">View & Book</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('restaurantsGrid').innerHTML = html;
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            loadRestaurants(
+                document.getElementById('searchTerm').value,
+                document.getElementById('city').value
+            );
+        });
+
+        loadRestaurants();
+    </script>
+}

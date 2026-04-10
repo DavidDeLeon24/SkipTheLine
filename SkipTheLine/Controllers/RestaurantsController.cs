@@ -10,9 +10,9 @@ using System.Security.Claims;
 
 namespace SkipTheLine.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]")]  // API endpoint: api/restaurants
     [ApiController]
-    [Authorize]
+    [Authorize]  // Most endpoints require authentication
     public class RestaurantsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -29,16 +29,17 @@ namespace SkipTheLine.Controllers
             _logger = logger;
         }
 
-        // GET: api/restaurants
+        // GET: api/restaurants - Get all restaurants with optional filters
         [HttpGet]
-        [AllowAnonymous]
+        [AllowAnonymous]  // Anyone can view restaurants without login
         public async Task<ActionResult<IEnumerable<RestaurantDto>>> GetRestaurants(
-            [FromQuery] string? searchTerm,
-            [FromQuery] string? cuisine,
-            [FromQuery] string? city)
+            [FromQuery] string? searchTerm,  // Search by name, cuisine, or city
+            [FromQuery] string? cuisine,      // Filter by cuisine type
+            [FromQuery] string? city)         // Filter by city
         {
             var query = _context.Restaurants.AsQueryable();
 
+            // Apply search filter
             if (!string.IsNullOrEmpty(searchTerm))
             {
                 query = query.Where(r => r.Name.Contains(searchTerm) ||
@@ -46,11 +47,13 @@ namespace SkipTheLine.Controllers
                                          r.City.Contains(searchTerm));
             }
 
+            // Apply cuisine filter
             if (!string.IsNullOrEmpty(cuisine))
             {
                 query = query.Where(r => r.Cuisine == cuisine);
             }
 
+            // Apply city filter
             if (!string.IsNullOrEmpty(city))
             {
                 query = query.Where(r => r.City.Contains(city));
@@ -63,13 +66,13 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<List<RestaurantDto>>(restaurants));
         }
 
-        // GET: api/restaurants/{id}
+        // GET: api/restaurants/{id} - Get single restaurant by ID
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<ActionResult<RestaurantDto>> GetRestaurant(int id)
         {
             var restaurant = await _context.Restaurants
-                .Include(r => r.Tables)
+                .Include(r => r.Tables)  // Include table information
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (restaurant == null)
@@ -78,7 +81,7 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<RestaurantDto>(restaurant));
         }
 
-        // GET: api/restaurants/cuisines
+        // GET: api/restaurants/cuisines - Get list of all available cuisines
         [HttpGet("cuisines")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<string>>> GetCuisines()
@@ -92,7 +95,7 @@ namespace SkipTheLine.Controllers
             return Ok(cuisines);
         }
 
-        // GET: api/restaurants/cities
+        // GET: api/restaurants/cities - Get list of all cities with restaurants
         [HttpGet("cities")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<string>>> GetCities()
@@ -106,7 +109,7 @@ namespace SkipTheLine.Controllers
             return Ok(cities);
         }
 
-        // GET: api/restaurants/my-restaurants
+        // GET: api/restaurants/my-restaurants - Get restaurants owned by current user
         [HttpGet("my-restaurants")]
         public async Task<ActionResult<IEnumerable<RestaurantDto>>> GetMyRestaurants()
         {
@@ -121,9 +124,9 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<List<RestaurantDto>>(restaurants));
         }
 
-        // POST: api/restaurants
+        // POST: api/restaurants - Create a new restaurant
         [HttpPost]
-        [Authorize(Roles = "RestaurantOwner,Admin")]
+        [Authorize(Roles = "RestaurantOwner,Admin")]  // Only restaurant owners or admins can create
         public async Task<ActionResult<RestaurantDto>> CreateRestaurant(CreateRestaurantDto createDto)
         {
             if (!ModelState.IsValid)
@@ -133,13 +136,14 @@ namespace SkipTheLine.Controllers
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 
-            // Check if restaurant with same name and address exists
+            // Check for duplicate restaurant (same name and address)
             var existingRestaurant = await _context.Restaurants
                 .FirstOrDefaultAsync(r => r.Name == createDto.Name && r.Address == createDto.Address);
 
             if (existingRestaurant != null)
                 return BadRequest(new { message = "A restaurant with this name and address already exists" });
 
+            // Create new restaurant
             var restaurant = _mapper.Map<Restaurant>(createDto);
             restaurant.OwnerId = userId;
             restaurant.CreatedAt = DateTime.UtcNow;
@@ -152,7 +156,7 @@ namespace SkipTheLine.Controllers
             // Create default tables for the restaurant
             var tables = new List<Table>();
 
-            // 2-seater tables (6 tables)
+            // Create 6 two-seater tables (Table #1-6)
             for (int i = 1; i <= 6; i++)
             {
                 tables.Add(new Table
@@ -164,7 +168,7 @@ namespace SkipTheLine.Controllers
                 });
             }
 
-            // 4-seater tables (4 tables)
+            // Create 4 four-seater tables (Table #7-10)
             for (int i = 7; i <= 10; i++)
             {
                 tables.Add(new Table
@@ -176,7 +180,7 @@ namespace SkipTheLine.Controllers
                 });
             }
 
-            // 6-seater tables (2 tables)
+            // Create 2 six-seater tables (Table #11-12)
             for (int i = 11; i <= 12; i++)
             {
                 tables.Add(new Table
@@ -196,7 +200,7 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<RestaurantDto>(restaurant));
         }
 
-        // PUT: api/restaurants/{id}
+        // PUT: api/restaurants/{id} - Update restaurant information
         [HttpPut("{id}")]
         [Authorize(Roles = "RestaurantOwner,Admin")]
         public async Task<IActionResult> UpdateRestaurant(int id, UpdateRestaurantDto updateDto)
@@ -206,9 +210,12 @@ namespace SkipTheLine.Controllers
                 return NotFound(new { message = "Restaurant not found" });
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // Verify ownership: only owner or admin can update
             if (restaurant.OwnerId != userId && !User.IsInRole("Admin"))
                 return Forbid();
 
+            // Apply updates
             _mapper.Map(updateDto, restaurant);
             restaurant.UpdatedAt = DateTime.UtcNow;
 
@@ -219,9 +226,9 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<RestaurantDto>(restaurant));
         }
 
-        // DELETE: api/restaurants/{id}
+        // DELETE: api/restaurants/{id} - Delete a restaurant (admin only)
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]  // Only admins can delete restaurants
         public async Task<IActionResult> DeleteRestaurant(int id)
         {
             var restaurant = await _context.Restaurants
@@ -232,7 +239,7 @@ namespace SkipTheLine.Controllers
             if (restaurant == null)
                 return NotFound(new { message = "Restaurant not found" });
 
-            // Check if there are future reservations
+            // Prevent deletion if there are future reservations
             var hasFutureReservations = restaurant.Reservations
                 .Any(r => r.ReservationDate >= DateTime.Today &&
                           r.Status != ReservationStatus.Cancelled);
@@ -248,7 +255,7 @@ namespace SkipTheLine.Controllers
             return Ok(new { message = "Restaurant deleted successfully" });
         }
 
-        // GET: api/restaurants/{id}/availability
+        // GET: api/restaurants/{id}/availability - Check available time slots for a date
         [HttpGet("{id}/availability")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<AvailabilitySlotDto>>> GetAvailability(
@@ -263,12 +270,15 @@ namespace SkipTheLine.Controllers
             if (restaurant == null)
                 return NotFound(new { message = "Restaurant not found" });
 
+            // Validate party size
             if (partySize > restaurant.MaxPartySize)
                 return BadRequest(new { message = $"Party size exceeds maximum of {restaurant.MaxPartySize}" });
 
+            // Cannot check past dates
             if (date.Date < DateTime.Today)
                 return BadRequest(new { message = "Cannot check availability for past dates" });
 
+            // Get existing reservations for the date
             var reservations = await _context.Reservations
                 .Where(r => r.RestaurantId == id &&
                            r.ReservationDate.Date == date.Date &&
@@ -281,17 +291,21 @@ namespace SkipTheLine.Controllers
             var endTime = restaurant.ClosingTime;
             var interval = TimeSpan.FromMinutes(30);
 
+            // Check each 30-minute time slot
             for (var time = startTime; time < endTime; time = time.Add(interval))
             {
+                // Find tables that can fit the party size
                 var availableTables = restaurant.Tables
                     .Where(t => t.Seats >= partySize && t.IsActive)
                     .ToList();
 
+                // Get table IDs already booked for this time
                 var bookedTableIds = reservations
                     .Where(r => r.ReservationTime == time)
                     .Select(r => r.TableId)
                     .ToList();
 
+                // Get available table sizes
                 var availableTableSizes = availableTables
                     .Where(t => !bookedTableIds.Contains(t.Id))
                     .Select(t => t.Seats)
@@ -312,7 +326,7 @@ namespace SkipTheLine.Controllers
             return Ok(availabilitySlots);
         }
 
-        // GET: api/restaurants/{id}/tables
+        // GET: api/restaurants/{id}/tables - Get all tables for a restaurant (owner only)
         [HttpGet("{id}/tables")]
         [Authorize(Roles = "RestaurantOwner,Admin")]
         public async Task<ActionResult<IEnumerable<object>>> GetRestaurantTables(int id)
@@ -325,6 +339,7 @@ namespace SkipTheLine.Controllers
             if (restaurant == null)
                 return NotFound(new { message = "Restaurant not found" });
 
+            // Verify ownership
             if (restaurant.OwnerId != userId && !User.IsInRole("Admin"))
                 return Forbid();
 
@@ -342,7 +357,7 @@ namespace SkipTheLine.Controllers
             }));
         }
 
-        // PUT: api/restaurants/{id}/tables/{tableId}/toggle
+        // PUT: api/restaurants/{id}/tables/{tableId}/toggle - Enable/disable a table
         [HttpPut("{id}/tables/{tableId}/toggle")]
         [Authorize(Roles = "RestaurantOwner,Admin")]
         public async Task<IActionResult> ToggleTableStatus(int id, int tableId)
@@ -355,6 +370,7 @@ namespace SkipTheLine.Controllers
             if (restaurant == null)
                 return NotFound(new { message = "Restaurant not found" });
 
+            // Verify ownership
             if (restaurant.OwnerId != userId && !User.IsInRole("Admin"))
                 return Forbid();
 
@@ -364,6 +380,7 @@ namespace SkipTheLine.Controllers
             if (table == null)
                 return NotFound(new { message = "Table not found" });
 
+            // Toggle table active status
             table.IsActive = !table.IsActive;
             await _context.SaveChangesAsync();
 

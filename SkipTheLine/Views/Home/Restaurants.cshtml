@@ -2,9 +2,11 @@
     ViewData["Title"] = "Restaurants - SkipTheLine";
 }
 
+<!-- Restaurant Listing Page - Browse and search restaurants -->
 <div class="container" style="padding: 40px 20px;">
     <h1 style="margin-bottom: 30px;">Find a Restaurant</h1>
 
+    <!-- Search Filters -->
     <div class="card" style="padding: 20px; margin-bottom: 30px;">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
             <input type="text" id="searchTerm" class="form-control" placeholder="Search by name or cuisine">
@@ -13,6 +15,7 @@
         </div>
     </div>
 
+    <!-- Restaurants Grid - Displays restaurant cards -->
     <div id="restaurantsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px;">
         <div style="text-align: center; padding: 40px;">Loading...</div>
     </div>
@@ -22,6 +25,7 @@
     <script>
         let currentToken = localStorage.getItem('token');
 
+        // Load restaurants from API with optional search filters
         async function loadRestaurants(searchTerm = '', city = '') {
             let url = '/api/restaurants';
             const params = new URLSearchParams();
@@ -38,6 +42,7 @@
             }
         }
 
+        // Display restaurants as cards in the grid
         function displayRestaurants(restaurants) {
             if (!restaurants || restaurants.length === 0) {
                 document.getElementById('restaurantsGrid').innerHTML = '<p>No restaurants found</p>';
@@ -63,6 +68,7 @@
             document.getElementById('restaurantsGrid').innerHTML = html;
         }
 
+        // Search button click handler
         document.getElementById('searchBtn').addEventListener('click', () => {
             loadRestaurants(
                 document.getElementById('searchTerm').value,
@@ -70,6 +76,7 @@
             );
         });
 
+        // Initial load - show all restaurants
         loadRestaurants();
     </script>
 }

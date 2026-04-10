@@ -2,13 +2,16 @@
     ViewData["Title"] = "Profile - SkipTheLine";
 }
 
+<!-- User Profile Page - View and edit personal information -->
 <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
     <div class="card" style="padding: 40px;">
         <h2 style="text-align: center; margin-bottom: 30px;">My Profile</h2>
 
+        <!-- Alert messages for success/error -->
         <div id="errorMessage" class="alert alert-error" style="display: none;"></div>
         <div id="successMessage" class="alert alert-success" style="display: none;"></div>
 
+        <!-- Profile Form -->
         <div id="profileForm">
             <div class="form-group">
                 <label>First Name</label>
@@ -20,7 +23,7 @@
             </div>
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" id="email" class="form-control" readonly>
+                <input type="email" id="email" class="form-control" readonly>  <!-- Email cannot be changed -->
             </div>
             <div class="form-group">
                 <label>Phone Number</label>
@@ -37,12 +40,15 @@
 
 @section Scripts {
     <script>
+        // Get authentication token
         const token = localStorage.getItem('token');
 
+        // Redirect to login if not authenticated
         if (!token) {
             window.location.href = '/Home/Login';
         }
 
+        // Load user profile data from API
         async function loadProfile() {
             try {
                 const response = await fetch('/api/users/profile', {
@@ -51,6 +57,7 @@
 
                 const user = await response.json();
 
+                // Populate form fields with user data
                 $('#firstName').val(user.firstName);
                 $('#lastName').val(user.lastName);
                 $('#email').val(user.email);
@@ -61,6 +68,7 @@
             }
         }
 
+        // Update user profile via API
         async function updateProfile() {
             const data = {
                 firstName: $('#firstName').val(),
@@ -80,6 +88,7 @@
                 });
 
                 if (response.ok) {
+                    // Show success message and hide after 3 seconds
                     $('#successMessage').text('Profile updated successfully!').show();
                     $('#errorMessage').hide();
                     setTimeout(() => $('#successMessage').hide(), 3000);
@@ -92,7 +101,10 @@
             }
         }
 
+        // Event handler for update button
         $('#updateBtn').click(updateProfile);
+
+        // Load profile on page load
         loadProfile();
     </script>
 }

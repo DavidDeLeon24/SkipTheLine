@@ -2,12 +2,15 @@
     ViewData["Title"] = "Login - SkipTheLine";
 }
 
+<!-- Login Page - User authentication form -->
 <div style="max-width: 400px; margin: 0 auto; padding: 40px;">
     <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         <h2 style="text-align: center; margin-bottom: 30px;">Welcome Back</h2>
 
+        <!-- Error message display area -->
         <div id="errorMessage" style="display: none; background: #f8d7da; color: #721c24; padding: 10px; border-radius: 6px; margin-bottom: 20px;"></div>
 
+        <!-- Login Form -->
         <form id="loginForm">
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">Email Address</label>
@@ -20,6 +23,7 @@
             <button type="submit" style="width: 100%; padding: 12px; background: #ff6b35; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">Login</button>
         </form>
 
+        <!-- Link to registration page -->
         <p style="text-align: center; margin-top: 20px;">
             Don't have an account? <a href="/Home/Register">Register here</a>
         </p>
@@ -28,6 +32,7 @@
 
 @section Scripts {
     <script>
+        // Handle login form submission
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -38,6 +43,7 @@
             errorDiv.style.display = 'none';
 
             try {
+                // Call login API
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -47,10 +53,12 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    // Clear old data and store new user data
                     localStorage.clear();
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
 
+                    // Store user role (convert number to string if needed)
                     const role = data.user.role;
                     if (typeof role === 'number') {
                         localStorage.setItem('userRole', role === 2 ? 'RestaurantOwner' : (role === 3 ? 'Admin' : 'Customer'));
@@ -59,6 +67,7 @@
                     }
                     localStorage.setItem('userEmail', data.user.email);
 
+                    // Redirect based on role (Owner/Admin goes to dashboard, Customer goes to home)
                     const roleValue = data.user.role;
                     if (roleValue === 2 || roleValue === 3 || roleValue === 'RestaurantOwner' || roleValue === 'Admin') {
                         window.location.href = '/Home/OwnerDashboard';

@@ -3,12 +3,16 @@
     var restaurantId = Context.Request.Query["id"];
 }
 
+<!-- Restaurant Details and Booking Page -->
 <div class="container" style="padding: 40px 20px;">
+    <!-- Restaurant info will be loaded here -->
     <div id="restaurantInfo"></div>
 
+    <!-- Booking Section -->
     <div style="margin-top: 40px;">
         <h2>Book a Table</h2>
 
+        <!-- Date and Party Size Selection -->
         <div class="card" style="padding: 20px; margin-top: 20px;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                 <input type="date" id="date" class="form-control">
@@ -26,8 +30,10 @@
             </div>
         </div>
 
+        <!-- Available time slots will be displayed here -->
         <div id="availabilitySlots" style="margin-top: 30px;"></div>
 
+        <!-- Booking confirmation form (hidden until time slot selected) -->
         <div id="bookingForm" style="display: none; margin-top: 30px;">
             <div class="card" style="padding: 20px;">
                 <h3>Confirm Your Reservation</h3>
@@ -35,7 +41,7 @@
                     <input type="hidden" id="selectedTime">
                     <div class="form-group">
                         <label>Special Requests (Optional)</label>
-                        <textarea id="specialRequests" class="form-control" rows="3" placeholder="Any special requests?"></textarea>
+                        <textarea id="specialRequests" class="form-control" rows="3" placeholder="Any special requests? (e.g., window seat, birthday celebration)"></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary">Confirm Booking</button>
                 </form>
@@ -46,12 +52,13 @@
 
 @section Scripts {
     <script type="text/javascript">
-        // Get restaurantId from the URL parameter
+        // Get restaurant ID from URL query string
         var urlParams = new URLSearchParams(window.location.search);
         var restaurantId = parseInt(urlParams.get('id'));
         var currentToken = localStorage.getItem('token');
         var selectedRestaurant = null;
 
+        // Load restaurant details from API
         async function loadRestaurant() {
             try {
                 var response = await fetch('/api/restaurants/' + restaurantId);
@@ -63,6 +70,7 @@
             }
         }
 
+        // Display restaurant information on the page
         function displayRestaurantInfo(restaurant) {
             var html = '<div class="card" style="padding: 30px;">' +
                 '<h1 style="color: #ff6b35; margin-bottom: 10px;">' + restaurant.name + '</h1>' +
@@ -77,12 +85,13 @@
             html += '</div>';
             document.getElementById('restaurantInfo').innerHTML = html;
 
-            // Set default date to tomorrow
+            // Set default date to tomorrow (cannot book same day)
             var tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
         }
 
+        // Check table availability for selected date and party size
         async function checkAvailability() {
             var date = document.getElementById('date').value;
             var partySize = document.getElementById('partySize').value;
@@ -103,6 +112,7 @@
             }
         }
 
+        // Display available time slots as clickable buttons
         function displayAvailability(slots) {
             if (!slots || slots.length === 0) {
                 document.getElementById('availabilitySlots').innerHTML = '<p class="alert alert-warning">No available time slots for the selected date and party size</p>';
@@ -116,9 +126,11 @@
             html += '</div>';
             document.getElementById('availabilitySlots').innerHTML = html;
 
+            // Add click handlers to time slot buttons
             var timeSlots = document.querySelectorAll('.time-slot');
             for (var i = 0; i < timeSlots.length; i++) {
                 timeSlots[i].addEventListener('click', function() {
+                    // Highlight selected time slot
                     var allSlots = document.querySelectorAll('.time-slot');
                     for (var j = 0; j < allSlots.length; j++) {
                         allSlots[j].classList.remove('btn-primary');
@@ -132,9 +144,11 @@
             }
         }
 
+        // Create reservation in the system
         async function createReservation(event) {
             event.preventDefault();
 
+            // Check if user is logged in
             if (!currentToken) {
                 alert('Please login to make a reservation');
                 window.location.href = '/Home/Login';
@@ -172,7 +186,7 @@
             }
         }
 
-        // Initialize event listeners after DOM is ready
+        // Initialize event listeners when page loads
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('checkAvailabilityBtn').addEventListener('click', checkAvailability);
             document.getElementById('reservationForm').addEventListener('submit', createReservation);

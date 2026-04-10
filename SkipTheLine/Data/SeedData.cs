@@ -85,7 +85,7 @@ namespace SkipTheLine.Data
                     PostalCode = "T4P 1X7",
                     Country = "Canada",
                     PhoneNumber = "(825) 706-1388",
-                    Email = "smilebakeryandcafe@gmail.com",
+                    Email = "smilebakeryandcafe11@gmail.com",
                     Website = "https://www.smilebakeryandcafe.com",
                     Description = "A cozy bakery and cafe offering delicious pastries, fresh bread, specialty coffee, and delightful treats. Perfect for breakfast, lunch, or a relaxing afternoon coffee. Our friendly staff ensures a warm and welcoming atmosphere for all customers.",
                     OpeningTime = new TimeSpan(8, 0, 0),

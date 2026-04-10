@@ -2,6 +2,7 @@
     ViewData["Title"] = "Owner Dashboard - SkipTheLine";
 }
 
+<!-- Restaurant Owner Dashboard - Manage restaurants and reservations -->
 <div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px;">
     <h1 style="margin-bottom: 30px;">Restaurant Owner Dashboard</h1>
 
@@ -12,7 +13,7 @@
         </button>
     </div>
 
-    <!-- Add Restaurant Form -->
+    <!-- Add Restaurant Form (hidden by default) -->
     <div id="addRestaurantForm" style="display: none; background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
         <h2 style="margin-bottom: 20px; color: #ff6b35;">Add New Restaurant</h2>
         <form id="restaurantForm">
@@ -65,7 +66,7 @@
         </form>
     </div>
 
-    <!-- Dashboard Content -->
+    <!-- Dashboard Content - Shows restaurants and reservations -->
     <div id="dashboardContent">
         <div style="text-align: center; padding: 40px;">
             <p>Loading dashboard...</p>
@@ -75,8 +76,10 @@
 
 @section Scripts {
     <script>
+        // Get authentication token
         const token = localStorage.getItem('token');
 
+        // Redirect to login if not authenticated
         if (!token) {
             window.location.href = '/Home/Login';
         }
@@ -99,7 +102,7 @@
             };
         }
 
-        // Submit new restaurant
+        // Submit new restaurant form
         const restaurantForm = document.getElementById('restaurantForm');
         if (restaurantForm) {
             restaurantForm.onsubmit = async (e) => {
@@ -136,7 +139,7 @@
                         alert('Restaurant added successfully!');
                         addForm.style.display = 'none';
                         restaurantForm.reset();
-                        loadDashboard();
+                        loadDashboard();  // Refresh dashboard
                     } else {
                         const error = await response.json();
                         alert(error.message || 'Failed to add restaurant');
@@ -147,7 +150,7 @@
             };
         }
 
-        // Load dashboard
+        // Load owner dashboard data from API
         async function loadDashboard() {
             try {
                 const response = await fetch('/api/users/restaurant/dashboard', {
@@ -169,9 +172,11 @@
             }
         }
 
+        // Display dashboard with restaurants and reservations
         function displayDashboard(data) {
             const container = document.getElementById('dashboardContent');
 
+            // No restaurants yet
             if (!data || data.length === 0) {
                 container.innerHTML = `
                     <div style="background: white; border-radius: 12px; padding: 60px; text-align: center;">
@@ -183,6 +188,7 @@
                 return;
             }
 
+            // Build HTML for each restaurant
             let html = '';
             for (let i = 0; i < data.length; i++) {
                 const item = data[i];
@@ -192,6 +198,7 @@
                         <p>${item.restaurant.address}, ${item.restaurant.city}</p>
                         <p>Hours: ${item.restaurant.openingTime.substring(0,5)} - ${item.restaurant.closingTime.substring(0,5)}</p>
 
+                        <!-- Statistics cards -->
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0;">
                             <div style="background: #f8f9fa; padding: 15px; text-align: center; border-radius: 8px;">
                                 <div style="font-size: 28px; font-weight: bold; color: #ff6b35;">${item.stats.totalReservations}</div>
@@ -203,6 +210,7 @@
                             </div>
                         </div>
 
+                        <!-- Upcoming reservations table -->
                         <h3>Upcoming Reservations (${item.upcomingReservations.length})</h3>
                         ${item.upcomingReservations.length === 0 ? '<p>No upcoming reservations</p>' : `
                             <table style="width: 100%; border-collapse: collapse;">
@@ -236,6 +244,7 @@
             }
             container.innerHTML = html;
 
+            // Check-in button handlers
             document.querySelectorAll('.checkin-btn').forEach(btn => {
                 btn.onclick = async () => {
                     const id = btn.getAttribute('data-id');
@@ -248,6 +257,7 @@
                 };
             });
 
+            // Cancel reservation button handlers
             document.querySelectorAll('.cancel-btn').forEach(btn => {
                 btn.onclick = async () => {
                     if (!confirm('Cancel this reservation?')) return;
@@ -262,6 +272,7 @@
             });
         }
 
+        // Initial load
         loadDashboard();
     </script>
 }

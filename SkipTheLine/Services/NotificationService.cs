@@ -4,6 +4,7 @@ using SkipTheLine.Models;
 
 namespace SkipTheLine.Services
 {
+    // Email notification service using SMTP (Gmail)
     public class NotificationService : INotificationService
     {
         private readonly IConfiguration _configuration;
@@ -15,6 +16,7 @@ namespace SkipTheLine.Services
             _logger = logger;
         }
 
+        // Send confirmation email after successful booking
         public async Task SendConfirmationEmailAsync(Reservation reservation, User user, Restaurant restaurant)
         {
             _logger.LogInformation("=== SendConfirmationEmailAsync START ===");
@@ -31,7 +33,7 @@ namespace SkipTheLine.Services
                 return;
             }
 
-            // Format time safely - FIXED
+            // Format time safely
             string formattedTime = "Time not available";
             try
             {
@@ -70,6 +72,7 @@ namespace SkipTheLine.Services
             _logger.LogInformation("=== SendConfirmationEmailAsync END ===");
         }
 
+        // Send reminder email day before reservation
         public async Task SendReminderEmailAsync(Reservation reservation, User user, Restaurant restaurant)
         {
             if (user == null || string.IsNullOrEmpty(user.Email))
@@ -78,7 +81,6 @@ namespace SkipTheLine.Services
                 return;
             }
 
-            // Format time safely
             string formattedTime = "Time not available";
             try
             {
@@ -109,6 +111,7 @@ namespace SkipTheLine.Services
             await SendEmailAsync(user.Email, $"{user.FirstName} {user.LastName}", subject, body);
         }
 
+        // Send email when reservation is cancelled
         public async Task SendCancellationEmailAsync(Reservation reservation, User user, Restaurant restaurant)
         {
             if (user == null || string.IsNullOrEmpty(user.Email))
@@ -117,7 +120,6 @@ namespace SkipTheLine.Services
                 return;
             }
 
-            // Format time safely
             string formattedTime = "Time not available";
             try
             {
@@ -148,6 +150,7 @@ namespace SkipTheLine.Services
             await SendEmailAsync(user.Email, $"{user.FirstName} {user.LastName}", subject, body);
         }
 
+        // Notify restaurant owner about new booking
         public async Task SendOwnerNotificationAsync(Reservation reservation, Restaurant restaurant)
         {
             if (restaurant == null || string.IsNullOrEmpty(restaurant.Email))
@@ -156,7 +159,6 @@ namespace SkipTheLine.Services
                 return;
             }
 
-            // Format time safely
             string formattedTime = "Time not available";
             try
             {
@@ -189,6 +191,7 @@ namespace SkipTheLine.Services
             await SendEmailAsync(restaurant.Email, restaurant.Name, subject, body);
         }
 
+        // Core email sending method using SMTP
         private async Task SendEmailAsync(string toEmail, string toName, string subject, string htmlBody)
         {
             try
@@ -239,7 +242,7 @@ namespace SkipTheLine.Services
             }
         }
 
-        // SMS methods (not used)
+        // SMS methods (not configured - just return completed)
         public Task SendConfirmationSmsAsync(Reservation reservation, User user, Restaurant restaurant)
         {
             return Task.CompletedTask;

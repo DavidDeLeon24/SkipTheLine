@@ -12,9 +12,9 @@ using System.Security.Claims;
 
 namespace SkipTheLine.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]")]  // API endpoint: api/reservations
     [ApiController]
-    [Authorize]
+    [Authorize]  // All endpoints require authentication
     public class ReservationsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -37,6 +37,7 @@ namespace SkipTheLine.Controllers
             _logger = logger;
         }
 
+        // GET: api/reservations - Get all reservations for current user
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ReservationDto>>> GetMyReservations()
         {
@@ -53,6 +54,7 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<List<ReservationDto>>(reservations));
         }
 
+        // GET: api/reservations/upcoming - Get only upcoming reservations
         [HttpGet("upcoming")]
         public async Task<ActionResult<IEnumerable<ReservationDto>>> GetUpcomingReservations()
         {
@@ -74,6 +76,7 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<List<ReservationDto>>(reservations));
         }
 
+        // GET: api/reservations/history - Get past reservations
         [HttpGet("history")]
         public async Task<ActionResult<IEnumerable<ReservationDto>>> GetReservationHistory()
         {
@@ -95,6 +98,7 @@ namespace SkipTheLine.Controllers
             return Ok(_mapper.Map<List<ReservationDto>>(reservations));
         }
 
+        // GET: api/reservations/{id} - Get single reservation by ID
         [HttpGet("{id}")]
         public async Task<ActionResult<ReservationDto>> GetReservation(int id)
         {
@@ -108,15 +112,18 @@ namespace SkipTheLine.Controllers
             if (reservation == null)
                 return NotFound(new { message = "Reservation not found" });
 
+            // Check authorization: owner, admin, or restaurant owner can view
             if (reservation.UserId != userId && !User.IsInRole("Admin") && !User.IsInRole("RestaurantOwner"))
                 return Forbid();
 
             return Ok(_mapper.Map<ReservationDto>(reservation));
         }
 
+        // POST: api/reservations - Create new reservation
         [HttpPost]
         public async Task<ActionResult<ReservationDto>> CreateReservation(CreateReservationDto createDto)
         {
+            // Validate input
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -124,6 +131,7 @@ namespace SkipTheLine.Controllers
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 
+            // Verify restaurant exists
             var restaurant = await _context.Restaurants
                 .Include(r => r.Tables)
                 .FirstOrDefaultAsync(r => r.Id == createDto.RestaurantId);
@@ -131,22 +139,26 @@ namespace SkipTheLine.Controllers
             if (restaurant == null)
                 return NotFound(new { message = "Restaurant not found" });
 
+            // Validate time is within restaurant hours
             if (createDto.ReservationTime < restaurant.OpeningTime ||
                 createDto.ReservationTime > restaurant.ClosingTime)
             {
                 return BadRequest(new { message = $"Reservation time must be between {restaurant.OpeningTime:hh\\:mm} and {restaurant.ClosingTime:hh\\:mm}" });
             }
 
+            // Cannot book past dates
             if (createDto.ReservationDate.Date < DateTime.Today)
             {
                 return BadRequest(new { message = "Cannot make reservations for past dates" });
             }
 
+            // Check party size limit
             if (createDto.PartySize > restaurant.MaxPartySize)
             {
                 return BadRequest(new { message = $"Party size cannot exceed {restaurant.MaxPartySize}" });
             }
 
+            // Find booked tables for the requested time
             var existingReservations = await _context.Reservations
                 .Where(r => r.RestaurantId == createDto.RestaurantId &&
                            r.ReservationDate.Date == createDto.ReservationDate.Date &&
@@ -156,6 +168,7 @@ namespace SkipTheLine.Controllers
                 .Select(r => r.TableId)
                 .ToListAsync();
 
+            // Find available table that fits party size
             var availableTable = restaurant.Tables
                 .Where(t => t.Seats >= createDto.PartySize &&
                            t.IsActive &&
@@ -168,6 +181,7 @@ namespace SkipTheLine.Controllers
                 return BadRequest(new { message = "No tables available for the selected time and party size" });
             }
 
+            // Create reservation
             var reservation = new Reservation
             {
                 UserId = userId,
@@ -190,7 +204,7 @@ namespace SkipTheLine.Controllers
                 .Include(r => r.Table)
                 .FirstOrDefaultAsync(r => r.Id == reservation.Id);
 
-            // Send notifications
+            // Send email notifications
             try
             {
                 var user = await _userManager.FindByIdAsync(userId);
@@ -210,6 +224,7 @@ namespace SkipTheLine.Controllers
                 _mapper.Map<ReservationDto>(createdReservation));
         }
 
+        // PUT: api/reservations/{id}/cancel - Cancel reservation
         [HttpPut("{id}/cancel")]
         public async Task<IActionResult> CancelReservation(int id)
         {
@@ -226,11 +241,10 @@ namespace SkipTheLine.Controllers
             if (reservation == null)
                 return NotFound(new { message = "Reservation not found" });
 
-            // Check if user owns this reservation
+            // Check if user has permission to cancel
             var isOwner = reservation.UserId == userId;
             var isAdmin = User.IsInRole("Admin");
 
-            // Check if user is the restaurant owner
             bool isRestaurantOwner = false;
             if (!isOwner && !isAdmin)
             {
@@ -241,9 +255,10 @@ namespace SkipTheLine.Controllers
 
             if (!isOwner && !isAdmin && !isRestaurantOwner)
             {
-                return Forbid(); // User cannot cancel this reservation
+                return Forbid();
             }
 
+            // Validation checks
             if (reservation.ReservationDate.Date < DateTime.Today)
                 return BadRequest(new { message = "Cannot cancel past reservations" });
 
@@ -257,6 +272,7 @@ namespace SkipTheLine.Controllers
                 return BadRequest(new { message = $"Cannot cancel reservation that is already {reservation.Status}" });
             }
 
+            // Cancel reservation
             reservation.Status = ReservationStatus.Cancelled;
             reservation.UpdatedAt = DateTime.UtcNow;
 
@@ -264,7 +280,7 @@ namespace SkipTheLine.Controllers
 
             _logger.LogInformation($"Reservation {id} cancelled by user {userId}");
 
-            // Send cancellation notification only to the reservation owner
+            // Send cancellation email only to the reservation owner
             if (isOwner)
             {
                 try
@@ -280,6 +296,7 @@ namespace SkipTheLine.Controllers
             return Ok(new { message = "Reservation cancelled successfully" });
         }
 
+        // PUT: api/reservations/{id}/reschedule - Change reservation date/time
         [HttpPut("{id}/reschedule")]
         public async Task<IActionResult> RescheduleReservation(int id, [FromBody] RescheduleReservationDto rescheduleDto)
         {
@@ -294,6 +311,7 @@ namespace SkipTheLine.Controllers
             if (reservation == null)
                 return NotFound(new { message = "Reservation not found" });
 
+            // Only reservation owner or admin can reschedule
             if (reservation.UserId != userId && !User.IsInRole("Admin"))
                 return Forbid();
 
@@ -302,12 +320,14 @@ namespace SkipTheLine.Controllers
 
             var restaurant = reservation.Restaurant;
 
+            // Validate new time within restaurant hours
             if (rescheduleDto.ReservationTime < restaurant.OpeningTime ||
                 rescheduleDto.ReservationTime > restaurant.ClosingTime)
             {
                 return BadRequest(new { message = $"Reservation time must be between {restaurant.OpeningTime:hh\\:mm} and {restaurant.ClosingTime:hh\\:mm}" });
             }
 
+            // Check table availability for new time
             var existingReservations = await _context.Reservations
                 .Where(r => r.RestaurantId == restaurant.Id &&
                            r.Id != id &&
@@ -330,6 +350,7 @@ namespace SkipTheLine.Controllers
                 return BadRequest(new { message = "No tables available for the selected time" });
             }
 
+            // Update reservation
             reservation.ReservationDate = rescheduleDto.ReservationDate;
             reservation.ReservationTime = rescheduleDto.ReservationTime;
             reservation.TableId = availableTable.Id;
@@ -337,6 +358,7 @@ namespace SkipTheLine.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Send confirmation email
             try
             {
                 if (reservation.User != null && reservation.Restaurant != null)
@@ -353,8 +375,9 @@ namespace SkipTheLine.Controllers
             return Ok(new { message = "Reservation rescheduled successfully" });
         }
 
+        // GET: api/reservations/restaurant/{restaurantId}/availability - Check available time slots
         [HttpGet("restaurant/{restaurantId}/availability")]
-        [AllowAnonymous]
+        [AllowAnonymous]  // Anyone can check availability without login
         public async Task<ActionResult<IEnumerable<AvailabilitySlotDto>>> GetAvailability(
             int restaurantId,
             [FromQuery] DateTime date,
@@ -373,6 +396,7 @@ namespace SkipTheLine.Controllers
             if (date.Date < DateTime.Today)
                 return BadRequest(new { message = "Cannot check availability for past dates" });
 
+            // Get existing reservations for the date
             var reservations = await _context.Reservations
                 .Where(r => r.RestaurantId == restaurantId &&
                            r.ReservationDate.Date == date.Date &&
@@ -385,6 +409,7 @@ namespace SkipTheLine.Controllers
             var endTime = restaurant.ClosingTime;
             var interval = TimeSpan.FromMinutes(30);
 
+            // Check each 30-minute time slot
             for (var time = startTime; time < endTime; time = time.Add(interval))
             {
                 var availableTables = restaurant.Tables
@@ -416,8 +441,9 @@ namespace SkipTheLine.Controllers
             return Ok(availabilitySlots);
         }
 
+        // GET: api/reservations/restaurant/{restaurantId}/stats - Get restaurant reservation statistics
         [HttpGet("restaurant/{restaurantId}/stats")]
-        [Authorize(Roles = "RestaurantOwner,Admin")]
+        [Authorize(Roles = "RestaurantOwner,Admin")]  // Only owners and admins can view stats
         public async Task<ActionResult<object>> GetRestaurantStats(int restaurantId)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -428,6 +454,7 @@ namespace SkipTheLine.Controllers
             if (restaurant == null)
                 return NotFound(new { message = "Restaurant not found" });
 
+            // Verify ownership
             if (restaurant.OwnerId != userId && !User.IsInRole("Admin"))
                 return Forbid();
 
@@ -439,6 +466,7 @@ namespace SkipTheLine.Controllers
                 .Where(r => r.RestaurantId == restaurantId)
                 .ToListAsync();
 
+            // Calculate statistics
             var stats = new
             {
                 total = new
@@ -485,6 +513,7 @@ namespace SkipTheLine.Controllers
         }
     }
 
+    // DTO for rescheduling a reservation
     public class RescheduleReservationDto
     {
         public DateTime ReservationDate { get; set; }

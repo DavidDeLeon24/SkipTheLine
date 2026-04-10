@@ -2,18 +2,22 @@
     ViewData["Title"] = "My Reservations - SkipTheLine";
 }
 
+<!-- Customer's reservation list page - shows upcoming and past bookings -->
 <div class="container" style="padding: 40px 20px;">
     <h1 style="margin-bottom: 30px;">My Reservations</h1>
 
+    <!-- Toggle buttons for Upcoming vs History view -->
     <div style="margin-bottom: 20px;">
         <button id="upcomingBtn" class="btn btn-primary">Upcoming</button>
         <button id="historyBtn" class="btn btn-secondary">History</button>
     </div>
 
+    <!-- Reservations will be displayed here -->
     <div id="reservationsList"></div>
 </div>
 
 <style>
+    /* Individual reservation card styling */
     .reservation-card {
         background: white;
         border-radius: 12px;
@@ -27,6 +31,7 @@
         margin: 8px 0;
     }
 
+    /* Status badge styling */
     .status-badge {
         display: inline-block;
         padding: 4px 12px;
@@ -40,6 +45,7 @@
         color: #155724;
     }
 
+    /* Cancel button styling */
     .cancel-button {
         background: #dc3545;
         color: white;
@@ -58,13 +64,16 @@
 
 @section Scripts {
     <script>
+        // Get authentication token from localStorage
         const token = localStorage.getItem('token');
-        let currentView = 'upcoming';
+        let currentView = 'upcoming';  // 'upcoming' or 'history'
 
+        // Redirect to login if not authenticated
         if (!token) {
             window.location.href = '/Home/Login';
         }
 
+        // Load reservations from API based on current view
         async function loadReservations() {
             const url = currentView === 'upcoming'
                 ? '/api/reservations/upcoming'
@@ -75,6 +84,7 @@
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
 
+                // Handle expired token
                 if (response.status === 401) {
                     localStorage.removeItem('token');
                     window.location.href = '/Home/Login';
@@ -88,6 +98,7 @@
             }
         }
 
+        // Display reservations as HTML cards
         function displayReservations(reservations) {
             const container = document.getElementById('reservationsList');
 
@@ -101,17 +112,19 @@
             for (let i = 0; i < reservations.length; i++) {
                 const r = reservations[i];
 
+                // Format date for display
                 const date = new Date(r.reservationDate);
                 const formattedDate = date.toLocaleDateString('en-US', {
                     year: 'numeric', month: 'long', day: 'numeric'
                 });
 
+                // Format time (remove seconds)
                 let formattedTime = r.reservationTime;
                 if (formattedTime && formattedTime.length > 5) {
                     formattedTime = formattedTime.substring(0, 5);
                 }
 
-                // Status is 2 = Confirmed
+                // Check if reservation is confirmed (status 2 = Confirmed)
                 const isConfirmed = (r.status === 2 || r.status === 'Confirmed');
                 const statusText = isConfirmed ? 'Confirmed' : (r.status === 5 ? 'Cancelled' : 'Unknown');
 
@@ -135,7 +148,7 @@
 
             container.innerHTML = html;
 
-            // Add cancel button handlers
+            // Attach cancel button event handlers
             const buttons = document.querySelectorAll('.cancel-button');
             for (let i = 0; i < buttons.length; i++) {
                 buttons[i].onclick = async function() {
@@ -147,7 +160,7 @@
                         });
                         if (response.ok) {
                             alert('Cancelled!');
-                            loadReservations();
+                            loadReservations();  // Refresh the list
                         } else {
                             const error = await response.json();
                             alert(error.message || 'Failed to cancel');
@@ -157,6 +170,7 @@
             }
         }
 
+        // Upcoming button click handler
         document.getElementById('upcomingBtn').onclick = function() {
             currentView = 'upcoming';
             this.className = 'btn btn-primary';
@@ -164,6 +178,7 @@
             loadReservations();
         };
 
+        // History button click handler
         document.getElementById('historyBtn').onclick = function() {
             currentView = 'history';
             this.className = 'btn btn-primary';
@@ -171,6 +186,7 @@
             loadReservations();
         };
 
+        // Initial load
         loadReservations();
     </script>
 }
